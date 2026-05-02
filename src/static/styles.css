@@ -21,7 +21,10 @@
   --border-light: #f0f0f0;
   --border-focus: #d0d0d0;
 
-  /* Feedback colors */
+  --secondary-glow: rgba(255, 111, 0, 0.2);
+  --secondary-glow-strong: rgba(255, 111, 0, 0.4);
+
+
   --success: #2e7d32;
   --success-light: #e8f5e9;
   --warning: #ff9800;
@@ -187,7 +190,9 @@ section h3 {
   margin-top: auto;
   padding-top: 10px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Activity Tag */
@@ -661,6 +666,38 @@ footer {
   border-radius: 20px;
 }
 
-#logout-button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+/* Share button */
+.share-button {
+  background-color: var(--background);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
+
+.share-button:hover {
+  background-color: var(--primary-light);
+  color: white;
+  border-color: var(--primary-light);
+}
+
+/* Deep-link highlight for shared activity */
+.activity-highlight {
+  outline: 2px solid var(--secondary);
+  box-shadow: 0 0 0 4px var(--secondary-glow);
+  animation: highlight-pulse 2s ease-out forwards;
+}
+
+@keyframes highlight-pulse {
+  0% { box-shadow: 0 0 0 4px var(--secondary-glow-strong); }
+  100% { box-shadow: 0 0 0 4px transparent; }
+}
+
+
