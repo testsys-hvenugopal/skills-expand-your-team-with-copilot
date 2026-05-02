@@ -7,7 +7,15 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Animated Git branch lines background -->
+    <canvas id="git-bg-canvas"></canvas>
+
     <header>
+      <!-- Mascots from octodex.github.com -->
+      <div class="mascot-container">
+        <img class="mascot mascot-left" src="https://octodex.github.com/images/labtocat.png" alt="Octocat mascot" />
+        <img class="mascot mascot-right" src="https://octodex.github.com/images/hula_tocat.gif" alt="Octocat mascot" />
+      </div>
       <h1>Mergington High School</h1>
       <h2>Extracurricular Activities</h2>
       <div id="user-controls">
@@ -169,5 +177,123 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+      // Animated Git-style branch lines background
+      (function () {
+        const canvas = document.getElementById("git-bg-canvas");
+        const ctx = canvas.getContext("2d");
+
+        function resize() {
+          canvas.width = window.innerWidth;
+          canvas.height = document.body.scrollHeight;
+        }
+        resize();
+        window.addEventListener("resize", resize);
+
+        const LINE_COLOR = "rgba(90, 158, 0, 0.18)";
+        const DOT_COLOR = "rgba(90, 158, 0, 0.35)";
+        const BRANCH_COLORS = [
+          "rgba(90, 158, 0, 0.18)",
+          "rgba(118, 196, 0, 0.14)",
+          "rgba(61, 110, 0, 0.16)",
+          "rgba(74, 171, 0, 0.12)",
+        ];
+
+        const COLS = 8;
+        const colSpacing = () => canvas.width / (COLS + 1);
+        const NODE_SPACING = 60;
+
+        // Each branch: { col, startRow, endRow, color, offset }
+        // We build a series of "commits" and "merges" as animated nodes
+        const branches = [];
+        const nodes = [];
+        let animProgress = 0;
+
+        function initBranches() {
+          branches.length = 0;
+          nodes.length = 0;
+          const rows = Math.ceil(canvas.height / NODE_SPACING) + 2;
+
+          // Create a main branch and several side branches
+          const branchDefs = [
+            { col: 3, color: BRANCH_COLORS[0] },
+            { col: 1, color: BRANCH_COLORS[1] },
+            { col: 5, color: BRANCH_COLORS[2] },
+            { col: 2, color: BRANCH_COLORS[3] },
+            { col: 6, color: BRANCH_COLORS[1] },
+          ];
+
+          branchDefs.forEach((b) => {
+            for (let row = 0; row < rows; row++) {
+              nodes.push({
+                col: b.col,
+                row,
+                color: b.color,
+                // Each node connects to the same col in next row,
+                // occasionally branching to adjacent col
+                branchTo:
+                  Math.random() < 0.12
+                    ? b.col + (Math.random() < 0.5 ? -1 : 1)
+                    : null,
+              });
+            }
+          });
+        }
+
+        initBranches();
+
+        let t = 0;
+        function draw() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          const cs = colSpacing();
+          const rows = Math.ceil(canvas.height / NODE_SPACING) + 2;
+
+          // Draw vertical branch lines
+          nodes.forEach((node) => {
+            const x = node.col * cs;
+            const y1 = node.row * NODE_SPACING;
+            const y2 = y1 + NODE_SPACING;
+
+            // Animated "wave" traveling down the branches
+            const wave = Math.sin(t * 0.015 + node.row * 0.3 + node.col) * 0.5 + 0.5;
+            ctx.globalAlpha = 0.5 + wave * 0.5;
+
+            ctx.strokeStyle = node.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y1);
+
+            if (node.branchTo && node.branchTo >= 1 && node.branchTo <= COLS) {
+              // Draw a curved branch line
+              const x2 = node.branchTo * cs;
+              ctx.bezierCurveTo(x, y1 + NODE_SPACING * 0.5, x2, y1 + NODE_SPACING * 0.5, x2, y2);
+            } else {
+              ctx.lineTo(x, y2);
+            }
+            ctx.stroke();
+
+            // Draw commit dots
+            if (Math.random() < 0.003 || (node.row % 4 === 0)) {
+              ctx.globalAlpha = 0.6 + wave * 0.4;
+              ctx.fillStyle = node.color.replace("0.18", "0.5").replace("0.14", "0.4").replace("0.16", "0.45").replace("0.12", "0.35");
+              ctx.beginPath();
+              ctx.arc(x, y1 + NODE_SPACING * 0.5, 4, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+
+          ctx.globalAlpha = 1;
+          t++;
+          requestAnimationFrame(draw);
+        }
+
+        draw();
+
+        // Reinit on resize
+        window.addEventListener("resize", () => {
+          initBranches();
+        });
+      })();
+    </script>
   </body>
 </html>
