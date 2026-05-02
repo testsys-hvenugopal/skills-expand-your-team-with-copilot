@@ -7,7 +7,15 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Animated Git branch lines background -->
+    <canvas id="git-bg-canvas"></canvas>
+
     <header>
+      <!-- Mascots from octodex.github.com -->
+      <div class="mascot-container">
+        <img class="mascot mascot-left" src="https://octodex.github.com/images/labtocat.png" alt="Octocat mascot" />
+        <img class="mascot mascot-right" src="https://octodex.github.com/images/hula_tocat.gif" alt="Octocat mascot" />
+      </div>
       <h1>Mergington High School</h1>
       <h2>Extracurricular Activities</h2>
       <div id="user-controls">
@@ -169,5 +177,124 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+      // Animated Git-style branch lines background
+      (function () {
+        const canvas = document.getElementById("git-bg-canvas");
+        const ctx = canvas.getContext("2d");
+
+        let resizeTimer;
+        function resize() {
+          canvas.width = window.innerWidth;
+          canvas.height = Math.max(document.documentElement.scrollHeight, window.innerHeight);
+        }
+        resize();
+        window.addEventListener("resize", () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            resize();
+            buildNodes();
+          }, 150);
+        });
+
+        // Branch definitions: col position and colors
+        const BRANCH_DEFS = [
+          { col: 3, lineColor: "rgba(90, 158, 0, 0.18)", dotColor: "rgba(90, 158, 0, 0.5)" },
+          { col: 1, lineColor: "rgba(118, 196, 0, 0.14)", dotColor: "rgba(118, 196, 0, 0.4)" },
+          { col: 5, lineColor: "rgba(61, 110, 0, 0.16)", dotColor: "rgba(61, 110, 0, 0.45)" },
+          { col: 2, lineColor: "rgba(74, 171, 0, 0.12)", dotColor: "rgba(74, 171, 0, 0.35)" },
+          { col: 6, lineColor: "rgba(118, 196, 0, 0.14)", dotColor: "rgba(118, 196, 0, 0.4)" },
+        ];
+
+        const COLS = 8;
+        const MAX_ROWS = 60; // Pre-generate enough rows to cover any viewport
+        const NODE_SPACING = 60;
+
+        // Pre-generate branch patterns once at startup (deterministic across resizes)
+        const branchPatterns = BRANCH_DEFS.map((b) => {
+          const rows = [];
+          for (let row = 0; row < MAX_ROWS; row++) {
+            const hasBranch = Math.random() < 0.12;
+            rows.push({
+              showDot: row % 4 === 0,
+              branchOffset: hasBranch ? (Math.random() < 0.5 ? -1 : 1) : 0,
+            });
+          }
+          return rows;
+        });
+
+        const nodes = [];
+
+        function buildNodes() {
+          nodes.length = 0;
+          const rows = Math.min(Math.ceil(canvas.height / NODE_SPACING) + 2, MAX_ROWS);
+
+          BRANCH_DEFS.forEach((b, bi) => {
+            for (let row = 0; row < rows; row++) {
+              const pattern = branchPatterns[bi][row];
+              const branchCol = b.col + pattern.branchOffset;
+              nodes.push({
+                col: b.col,
+                row,
+                lineColor: b.lineColor,
+                dotColor: b.dotColor,
+                showDot: pattern.showDot,
+                branchTo: pattern.branchOffset !== 0 && branchCol >= 1 && branchCol <= COLS
+                  ? branchCol
+                  : null,
+              });
+            }
+          });
+        }
+
+        buildNodes();
+
+        const colSpacing = () => canvas.width / (COLS + 1);
+        let t = 0;
+        function draw() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          const cs = colSpacing();
+
+          nodes.forEach((node) => {
+            const x = node.col * cs;
+            const y1 = node.row * NODE_SPACING;
+            const y2 = y1 + NODE_SPACING;
+
+            // Animated "wave" traveling down the branches
+            const wave = Math.sin(t * 0.015 + node.row * 0.3 + node.col) * 0.5 + 0.5;
+            ctx.globalAlpha = 0.5 + wave * 0.5;
+
+            ctx.strokeStyle = node.lineColor;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y1);
+
+            if (node.branchTo) {
+              // Draw a curved branch line
+              const x2 = node.branchTo * cs;
+              ctx.bezierCurveTo(x, y1 + NODE_SPACING * 0.5, x2, y1 + NODE_SPACING * 0.5, x2, y2);
+            } else {
+              ctx.lineTo(x, y2);
+            }
+            ctx.stroke();
+
+            // Draw commit dots at pre-determined rows
+            if (node.showDot) {
+              ctx.globalAlpha = 0.6 + wave * 0.4;
+              ctx.fillStyle = node.dotColor;
+              ctx.beginPath();
+              ctx.arc(x, y1 + NODE_SPACING * 0.5, 4, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+
+          ctx.globalAlpha = 1;
+          t++;
+          requestAnimationFrame(draw);
+        }
+
+        draw();
+      })();
+    </script>
   </body>
 </html>
