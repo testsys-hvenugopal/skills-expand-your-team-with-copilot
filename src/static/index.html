@@ -183,58 +183,51 @@
         const canvas = document.getElementById("git-bg-canvas");
         const ctx = canvas.getContext("2d");
 
+        let resizeTimer;
         function resize() {
           canvas.width = window.innerWidth;
-          canvas.height = document.body.scrollHeight;
+          canvas.height = window.innerHeight;
         }
         resize();
-        window.addEventListener("resize", resize);
+        window.addEventListener("resize", () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            resize();
+            initBranches();
+          }, 150);
+        });
 
-        const LINE_COLOR = "rgba(90, 158, 0, 0.18)";
-        const DOT_COLOR = "rgba(90, 158, 0, 0.35)";
-        const BRANCH_COLORS = [
-          "rgba(90, 158, 0, 0.18)",
-          "rgba(118, 196, 0, 0.14)",
-          "rgba(61, 110, 0, 0.16)",
-          "rgba(74, 171, 0, 0.12)",
+        // Branch colors: [lineColor, dotColor]
+        const BRANCH_DEFS = [
+          { col: 3, lineColor: "rgba(90, 158, 0, 0.18)", dotColor: "rgba(90, 158, 0, 0.5)" },
+          { col: 1, lineColor: "rgba(118, 196, 0, 0.14)", dotColor: "rgba(118, 196, 0, 0.4)" },
+          { col: 5, lineColor: "rgba(61, 110, 0, 0.16)", dotColor: "rgba(61, 110, 0, 0.45)" },
+          { col: 2, lineColor: "rgba(74, 171, 0, 0.12)", dotColor: "rgba(74, 171, 0, 0.35)" },
+          { col: 6, lineColor: "rgba(118, 196, 0, 0.14)", dotColor: "rgba(118, 196, 0, 0.4)" },
         ];
 
         const COLS = 8;
         const colSpacing = () => canvas.width / (COLS + 1);
         const NODE_SPACING = 60;
 
-        // Each branch: { col, startRow, endRow, color, offset }
-        // We build a series of "commits" and "merges" as animated nodes
-        const branches = [];
         const nodes = [];
-        let animProgress = 0;
 
         function initBranches() {
-          branches.length = 0;
           nodes.length = 0;
           const rows = Math.ceil(canvas.height / NODE_SPACING) + 2;
 
-          // Create a main branch and several side branches
-          const branchDefs = [
-            { col: 3, color: BRANCH_COLORS[0] },
-            { col: 1, color: BRANCH_COLORS[1] },
-            { col: 5, color: BRANCH_COLORS[2] },
-            { col: 2, color: BRANCH_COLORS[3] },
-            { col: 6, color: BRANCH_COLORS[1] },
-          ];
-
-          branchDefs.forEach((b) => {
+          BRANCH_DEFS.forEach((b) => {
             for (let row = 0; row < rows; row++) {
+              const hasBranch = Math.random() < 0.12;
               nodes.push({
                 col: b.col,
                 row,
-                color: b.color,
-                // Each node connects to the same col in next row,
-                // occasionally branching to adjacent col
-                branchTo:
-                  Math.random() < 0.12
-                    ? b.col + (Math.random() < 0.5 ? -1 : 1)
-                    : null,
+                lineColor: b.lineColor,
+                dotColor: b.dotColor,
+                showDot: row % 4 === 0,
+                branchTo: hasBranch
+                  ? b.col + (Math.random() < 0.5 ? -1 : 1)
+                  : null,
               });
             }
           });
@@ -246,9 +239,7 @@
         function draw() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           const cs = colSpacing();
-          const rows = Math.ceil(canvas.height / NODE_SPACING) + 2;
 
-          // Draw vertical branch lines
           nodes.forEach((node) => {
             const x = node.col * cs;
             const y1 = node.row * NODE_SPACING;
@@ -258,7 +249,7 @@
             const wave = Math.sin(t * 0.015 + node.row * 0.3 + node.col) * 0.5 + 0.5;
             ctx.globalAlpha = 0.5 + wave * 0.5;
 
-            ctx.strokeStyle = node.color;
+            ctx.strokeStyle = node.lineColor;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(x, y1);
@@ -272,10 +263,10 @@
             }
             ctx.stroke();
 
-            // Draw commit dots
-            if (Math.random() < 0.003 || (node.row % 4 === 0)) {
+            // Draw commit dots at pre-determined rows
+            if (node.showDot) {
               ctx.globalAlpha = 0.6 + wave * 0.4;
-              ctx.fillStyle = node.color.replace("0.18", "0.5").replace("0.14", "0.4").replace("0.16", "0.45").replace("0.12", "0.35");
+              ctx.fillStyle = node.dotColor;
               ctx.beginPath();
               ctx.arc(x, y1 + NODE_SPACING * 0.5, 4, 0, Math.PI * 2);
               ctx.fill();
@@ -288,11 +279,6 @@
         }
 
         draw();
-
-        // Reinit on resize
-        window.addEventListener("resize", () => {
-          initBranches();
-        });
       })();
     </script>
   </body>
