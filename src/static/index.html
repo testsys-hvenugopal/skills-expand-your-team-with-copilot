@@ -186,18 +186,18 @@
         let resizeTimer;
         function resize() {
           canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
+          canvas.height = Math.max(document.documentElement.scrollHeight, window.innerHeight);
         }
         resize();
         window.addEventListener("resize", () => {
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(() => {
             resize();
-            initBranches();
+            buildNodes();
           }, 150);
         });
 
-        // Branch colors: [lineColor, dotColor]
+        // Branch definitions: col position and colors
         const BRANCH_DEFS = [
           { col: 3, lineColor: "rgba(90, 158, 0, 0.18)", dotColor: "rgba(90, 158, 0, 0.5)" },
           { col: 1, lineColor: "rgba(118, 196, 0, 0.14)", dotColor: "rgba(118, 196, 0, 0.4)" },
@@ -207,34 +207,49 @@
         ];
 
         const COLS = 8;
-        const colSpacing = () => canvas.width / (COLS + 1);
+        const MAX_ROWS = 60; // Pre-generate enough rows to cover any viewport
         const NODE_SPACING = 60;
+
+        // Pre-generate branch patterns once at startup (deterministic across resizes)
+        const branchPatterns = BRANCH_DEFS.map((b) => {
+          const rows = [];
+          for (let row = 0; row < MAX_ROWS; row++) {
+            const hasBranch = Math.random() < 0.12;
+            rows.push({
+              showDot: row % 4 === 0,
+              branchOffset: hasBranch ? (Math.random() < 0.5 ? -1 : 1) : 0,
+            });
+          }
+          return rows;
+        });
 
         const nodes = [];
 
-        function initBranches() {
+        function buildNodes() {
           nodes.length = 0;
-          const rows = Math.ceil(canvas.height / NODE_SPACING) + 2;
+          const rows = Math.min(Math.ceil(canvas.height / NODE_SPACING) + 2, MAX_ROWS);
 
-          BRANCH_DEFS.forEach((b) => {
+          BRANCH_DEFS.forEach((b, bi) => {
             for (let row = 0; row < rows; row++) {
-              const hasBranch = Math.random() < 0.12;
+              const pattern = branchPatterns[bi][row];
+              const branchCol = b.col + pattern.branchOffset;
               nodes.push({
                 col: b.col,
                 row,
                 lineColor: b.lineColor,
                 dotColor: b.dotColor,
-                showDot: row % 4 === 0,
-                branchTo: hasBranch
-                  ? b.col + (Math.random() < 0.5 ? -1 : 1)
+                showDot: pattern.showDot,
+                branchTo: pattern.branchOffset !== 0 && branchCol >= 1 && branchCol <= COLS
+                  ? branchCol
                   : null,
               });
             }
           });
         }
 
-        initBranches();
+        buildNodes();
 
+        const colSpacing = () => canvas.width / (COLS + 1);
         let t = 0;
         function draw() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -254,7 +269,7 @@
             ctx.beginPath();
             ctx.moveTo(x, y1);
 
-            if (node.branchTo && node.branchTo >= 1 && node.branchTo <= COLS) {
+            if (node.branchTo) {
               // Draw a curved branch line
               const x2 = node.branchTo * cs;
               ctx.bezierCurveTo(x, y1 + NODE_SPACING * 0.5, x2, y1 + NODE_SPACING * 0.5, x2, y2);
