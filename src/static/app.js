@@ -568,6 +568,10 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <button class="share-button tooltip" data-activity="${name}" aria-label="Share this activity">
+          🔗 Share
+          <span class="tooltip-text">Share this activity with friends</span>
+        </button>
       </div>
     `;
 
@@ -587,7 +591,44 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // Add click handler for share button
+    const shareButton = activityCard.querySelector(".share-button");
+    shareButton.addEventListener("click", () => {
+      shareActivity(name, details);
+    });
+
     activitiesList.appendChild(activityCard);
+  }
+
+  // Share an activity via Web Share API or clipboard fallback
+  async function shareActivity(name, details) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("activity", name);
+    const shareUrl = url.toString();
+    const formattedSchedule = formatSchedule(details);
+    const shareText = `Check out "${name}" at Mergington High School! Schedule: ${formattedSchedule}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${name} – Mergington High School`,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("Error sharing:", error);
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        showMessage(`Link copied to clipboard: ${shareUrl}`, "success");
+      } catch (error) {
+        console.error("Error copying to clipboard:", error);
+        showMessage("Could not copy link. Please copy the URL manually.", "error");
+      }
+    }
   }
 
   // Event listeners for search and filter
@@ -864,5 +905,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize app
   checkAuthentication();
   initializeFilters();
-  fetchActivities();
+  fetchActivities().then(() => {
+    // Highlight activity from URL query param (deep-link from share)
+    const params = new URLSearchParams(window.location.search);
+    const linkedActivity = params.get("activity");
+    if (linkedActivity) {
+      const cards = activitiesList.querySelectorAll(".activity-card");
+      cards.forEach((card) => {
+        const heading = card.querySelector("h4");
+        if (heading && heading.textContent === linkedActivity) {
+          card.classList.add("activity-highlight");
+          card.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    }
+  });
 });
